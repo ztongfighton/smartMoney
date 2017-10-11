@@ -131,8 +131,8 @@ class Strategy:
 
         stocks_in_position = list(self.position.keys())
         n = len(stocks_in_position)
+        '''
         #卖出当日主力净流入额为负的股票
-
         mfd_inflow_m = w.wss(stocks_in_position, "mfd_inflow_m", "unit=1;tradeDate=" + date).Data[0]
         idx = [True] * n
         for i in range(n):
@@ -145,6 +145,7 @@ class Strategy:
                 idx[i] = False
         stocks_in_position = np.array(stocks_in_position)[idx]
         '''
+
         #卖出持仓期间主力净流入额为负的股票
         date_pre10 = w.tdaysoffset(-9, date, "")
         date_pre10 = datetime.datetime.strftime(date_pre10.Data[0][0], '%Y%m%d')
@@ -158,7 +159,7 @@ class Strategy:
             amount = p[1]
             self.signal[stock] = [stock_name, amount, "Sell"]
         stocks_in_position = np.array(stocks_in_position)[~idx]
-        '''
+
 
         #止盈30%卖出
         n = stocks_in_position.size
