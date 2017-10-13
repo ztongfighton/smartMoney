@@ -2,26 +2,22 @@ from WindPy import *
 import pandas as pd
 import datetime
 import strategy
-import time
 import strategy_lib as sl
 
 w.start()
 s = strategy.Strategy()
+s.initialize()
 
-trade_days = w.tdays(s.start_date, s.end_date, "").Data[0]
-previous_trade_day = w.tdaysoffset(-1, trade_days[0], "").Data[0]
-trade_days = previous_trade_day + trade_days
-#初始化生成建仓信号的日期
-s.next_signal_date = datetime.datetime.strftime(previous_trade_day[0], '%Y%m%d')
-for trade_day in trade_days:
+for trade_day in s.trade_days:
     date = datetime.datetime.strftime(trade_day, '%Y%m%d')
+    #执行前一交易日生成的买卖信号
+    s.order(date)
     s.asset_evaluation(date)
     #日终生成下一日的买卖信号
-    s.generateSignal(date)
-    next_trade_date = w.tdaysoffset(1, trade_day, "").Data[0][0]
-    next_trade_date = datetime.datetime.strftime(next_trade_date, '%Y%m%d')
-    #下一交易日执行买卖信号
-    s.order(next_trade_date)
+    if date == s.last_signal_date:
+        s.generateClearSignal(date)
+    elif date == s.next_signal_date:
+        s.generateSignal(date)
     print("Finished process " + date)
 
 writer = pd.ExcelWriter('回测结果.xls')

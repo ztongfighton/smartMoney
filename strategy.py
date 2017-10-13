@@ -2,10 +2,8 @@ from WindPy import *
 import numpy as np
 import pandas as pd
 import datetime
-import time
 import math
-import strategy_lib as sl
-from copy import deepcopy
+
 class Strategy:
     global w
     # 设置回测开始时间
@@ -28,6 +26,14 @@ class Strategy:
     transaction = []
     #下一个调仓日
     next_signal_date = ''
+
+    def initialize(self):
+        self.trade_days = w.tdays(self.start_date, self.end_date, "").Data[0]
+        first_signal_date = w.tdaysoffset(-1, self.trade_days[0], "").Data[0]
+        self.trade_days = first_signal_date + self.trade_days
+        self.last_signal_date = datetime.datetime.strftime(self.trade_days[-2], '%Y%m%d')
+        self.next_signal_date = datetime.datetime.strftime(self.trade_days[0], '%Y%m%d')
+
     def order(self, date):
         if not self.signal:
             return
@@ -39,6 +45,8 @@ class Strategy:
         maxupordown = pd.Series(maxupordown, index = stock_codes)
         open_prices = w.wss(stock_codes, "open", "tradeDate=" + date + ";priceAdj=U;cycle=D").Data[0]
         open_prices = pd.Series(open_prices, index = stock_codes)
+        open_prices_f = w.wss(stock_codes, "open", "tradeDate=" + date + ";priceAdj=F;cycle=D").Data[0]
+        open_prices_f = pd.Series(open_prices_f, index = stock_codes)
 
         #处理卖信号
         for stock_code in list(self.signal.keys()):
@@ -68,21 +76,20 @@ class Strategy:
                         amount = math.floor(self.cash / (1 + self.commission) / open_price / 100) * 100
                     if amount > 0:
                         self.cash = self.cash - open_price * amount * (1 + self.commission)
-                        self.position[stock_code] = [stock_name, amount, open_price, date]
+                        self.position[stock_code] = [stock_name, amount, open_prices_f[stock_code], date]
                         self.transaction.append([stock_code, stock_name, amount, open_price, "Buy", date])
                 #无论买信号执行与否，删除买信号
                 del self.signal[stock_code]
 
     def generateSignal(self, date):
-        if date == self.next_signal_date:
-            #time1 = time.time()
-            self.generateBuySignal(date)
-            #time2 = time.time()
-            self.generateSellSignal(date)
-            # time3 = time.time()
-            # print("生成买信号耗时：%f" % (time2 - time1))
-            # print("生成卖信号耗时：%f" % (time3 - time2))
-            self.next_signal_date = datetime.datetime.strftime(w.tdaysoffset(10, self.next_signal_date, "").Data[0][0], '%Y%m%d')
+        #time1 = time.time()
+        self.generateBuySignal(date)
+        #time2 = time.time()
+        self.generateSellSignal(date)
+        # time3 = time.time()
+        # print("生成买信号耗时：%f" % (time2 - time1))
+        # print("生成卖信号耗时：%f" % (time3 - time2))
+        self.next_signal_date = datetime.datetime.strftime(w.tdaysoffset(10, self.next_signal_date, "").Data[0][0], '%Y%m%d')
 
     def generateBuySignal(self, date):
         #提取当日的沪深300成分股
@@ -106,7 +113,7 @@ class Strategy:
         stock_codes = pd.Series(stock_codes)
         data = pd.DataFrame({"stock_codes" : stock_codes, "stock_name":stock_names, "mfd_inflow_m_10_mean":mfd_inflow_m_10_mean, "mfd_inflow_m_90_mean":mfd_inflow_m_90_mean, "mfd_inflow_m_today":mfd_inflow_m_today})
         data.set_index("stock_codes", inplace=True)
-        data.dropna(axis=0, how='any', inplace = True)
+        data.dropna(axis=0, how='all', inplace = True)
         data = data[(data.mfd_inflow_m_today > 0) & (data.mfd_inflow_m_10_mean > 0) & (data.mfd_inflow_m_90_mean > 0) & (data.mfd_inflow_m_10_mean.values / data.mfd_inflow_m_90_mean.values > 2.5)]
         stock_codes = list(data.index)
 
@@ -171,15 +178,19 @@ class Strategy:
                 amount = p[1]
                 self.signal[stock_code] = [stock_name, amount, "Sell"]
 
+    def generateClearSignal(self, date):
+        for stock_code, p in self.position.items():
+            stock_name = p[0]
+            amount = p[1]
+            self.signal[stock_code] = [stock_name, amount, "Sell"]
+
+
     #按收盘价计算组合资产净值
     def asset_evaluation(self, date):
         stock_value = 0
         stocks_in_position = list(self.position.keys())
         n = len(stocks_in_position)
         if n > 0:
-            #close_price = np.array(w.wsd(stocks_in_position, 'close', date, date, "Fill=Previous").Data[0])
-            #amount = self.position['amount'].values
-            #stock_value = close_price.dot(amount)
             close_prices = w.wsd(stocks_in_position, 'close', date, date, "Fill=Previous").Data[0]
             for i in range(n):
                 stock_code = stocks_in_position[i]
