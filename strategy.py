@@ -9,7 +9,7 @@ class Strategy:
     # 设置回测开始时间
     start_date = '20170101'
     # 设置回测结束时间
-    end_date = '20170131'
+    end_date = '20170130'
     #每日日终生成的交易信号,包含stock_code, stock_name, amount和direction等信息
     signal = {}
     #策略持仓,包含stock_code, stock_name, amount, cost, trade_date等信息
@@ -21,7 +21,7 @@ class Strategy:
     #组合持仓数限制
     cap_num = 50
     #手续费
-    commission = 0.003
+    commission = 0.002
     #策略交易记录,包含stock_code, stock_name, amount, price, direction, trade_date等信息
     transaction = []
     #下一个调仓日
@@ -104,8 +104,8 @@ class Strategy:
         date_pre90 = datetime.datetime.strftime(date_pre90.Data[0][0], '%Y%m%d')
         mfd_inflow_m_10 = w.wsd(stock_codes, "mfd_inflow_m", date_pre10, date, "unit=1")
         mfd_inflow_m_90 = w.wsd(stock_codes, "mfd_inflow_m", date_pre90, date, "unit=1")
-        mfd_inflow_m_10_mean = pd.Series(np.array(mfd_inflow_m_10.Data).mean(axis = 1))
-        mfd_inflow_m_90_mean = pd.Series(np.array(mfd_inflow_m_90.Data).mean(axis = 1))
+        mfd_inflow_m_10_mean = pd.Series(np.nan_to_num(np.array(mfd_inflow_m_10.Data)).mean(axis = 1))
+        mfd_inflow_m_90_mean = pd.Series(np.nan_to_num(np.array(mfd_inflow_m_90.Data)).mean(axis = 1))
         mfd_inflow_m_today = pd.Series(np.array(mfd_inflow_m_10.Data).T[-1])
 
         #剔除缺数据，当日主力净流入额为负，近10日主力净流入额均值为负，近90日主力净流入额均值为负的个股
@@ -113,7 +113,7 @@ class Strategy:
         stock_codes = pd.Series(stock_codes)
         data = pd.DataFrame({"stock_codes" : stock_codes, "stock_name":stock_names, "mfd_inflow_m_10_mean":mfd_inflow_m_10_mean, "mfd_inflow_m_90_mean":mfd_inflow_m_90_mean, "mfd_inflow_m_today":mfd_inflow_m_today})
         data.set_index("stock_codes", inplace=True)
-        data.dropna(axis=0, how='all', inplace = True)
+        data.dropna(axis=0, how='any', inplace = True)
         data = data[(data.mfd_inflow_m_today > 0) & (data.mfd_inflow_m_10_mean > 0) & (data.mfd_inflow_m_90_mean > 0) & (data.mfd_inflow_m_10_mean.values / data.mfd_inflow_m_90_mean.values > 2.5)]
         stock_codes = list(data.index)
 
