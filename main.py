@@ -8,6 +8,7 @@ w.start()
 s = strategy.Strategy()
 s.initialize()
 
+
 for trade_day in s.trade_days:
     date = datetime.datetime.strftime(trade_day, '%Y%m%d')
     #执行前一交易日生成的买卖信号
