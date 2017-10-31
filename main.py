@@ -5,8 +5,7 @@ import strategy
 import strategy_lib as sl
 
 w.start()
-
-
+'''
 s = strategy.Strategy()
 s.initialize()
 
@@ -28,7 +27,7 @@ s.cur.close()
 s.conn.close()
 
 writer = pd.ExcelWriter("回测结果.xls")
-total_asset = pd.DataFrame(list(s.total_asset.items()), columns = ["date", "value"])
+total_asset = pd.DataFrame(s.total_asset, columns = ["date", "value", "position"])
 total_asset.set_index(["date"], inplace = True)
 total_asset.sort_index(axis = 0, ascending = True, inplace = True)
 transaction = pd.DataFrame(s.transaction, columns = ["stock_code", "stock_name", "amount", "price", "direction", "trade_date"])
@@ -38,9 +37,11 @@ transaction.to_excel(writer, "调仓记录")
 buy_signal_info.to_excel(writer, "买入信号生成信息")
 writer.save()
 print("Done!")
+'''
 
 
-sl.plotComparison(w, '20170101', '20170331')
+#sl.plotComparison(w, '20170401', '20170630')
+sl.plotPosition(w, '20170401', '20170630')
 
 
 

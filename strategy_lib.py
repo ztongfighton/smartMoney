@@ -53,6 +53,25 @@ def plotComparison(w, start_date, end_date):
     fig.autofmt_xdate()
     plt.show()
 
+#组合仓位图
+def plotPosition(w, start_date, end_date):
+    trade_days = w.tdays(start_date, end_date, "").Data[0]
+    position = xlrd.open_workbook(r"回测结果.xls").sheet_by_index(0).col_values(2)
+    position = np.array(position[2:]) * 100
+    x = dt.date2num(trade_days)
+    mpl.rcParams["font.sans-serif"] = ["Microsoft YaHei"]  # 用来正常显示中文标签
+    fig = plt.figure()
+    plt.xlabel('日期')
+    plt.ylabel('仓位')
+    plt.plot_date(x, position, fmt='r--', xdate=True, ydate=False)
+    fig.autofmt_xdate()
+    plt.show()
+
+
+
+
+
+
 
 
 
