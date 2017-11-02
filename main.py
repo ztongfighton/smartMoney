@@ -5,7 +5,7 @@ import strategy
 import strategy_lib as sl
 
 w.start()
-'''
+
 s = strategy.Strategy()
 s.initialize()
 
@@ -26,22 +26,31 @@ for trade_day in s.trade_days:
 s.cur.close()
 s.conn.close()
 
-writer = pd.ExcelWriter("回测结果.xls")
-total_asset = pd.DataFrame(s.total_asset, columns = ["date", "value", "position"])
-total_asset.set_index(["date"], inplace = True)
+#生成净值文件
+writer = pd.ExcelWriter("净值.xls")
+total_asset = pd.DataFrame(s.total_asset, columns = ["日期", "单位净值", "资产规模", "现金"])
+total_asset.set_index(["日期"], inplace = True)
 total_asset.sort_index(axis = 0, ascending = True, inplace = True)
-transaction = pd.DataFrame(s.transaction, columns = ["stock_code", "stock_name", "amount", "price", "direction", "trade_date"])
-buy_signal_info = pd.DataFrame(s.buy_signal_info, columns = ["stock_code", "stock_name", "inflow_10", "inflow_90", "inflow_today", "date"])
-total_asset.to_excel(writer, "组合资产净值")
-transaction.to_excel(writer, "调仓记录")
+total_asset.to_excel(writer, "净值")
+writer.save()
+
+#生成交易文件
+writer = pd.ExcelWriter("交易.xls")
+transaction = pd.DataFrame(s.transaction, columns = ["日期", "成交时间", "证券代码", "交易市场代码", "交易方向", "投保", "交易数量", "交易价格"])
+transaction.to_excel(writer, "交易", index = False)
+writer.save()
+
+#生成买入信号文件
+writer = pd.ExcelWriter("买入信号.xls")
+buy_signal_info = pd.DataFrame(s.buy_signal_info, columns = ["证券代码", "证券简称", "近10日大单净流入额平均值", "近90日大单净流入额平均值", \
+                                                             "生成买入信号当日大单净流入额", "买入信号生成日期"])
 buy_signal_info.to_excel(writer, "买入信号生成信息")
 writer.save()
+
 print("Done!")
-'''
 
-
-#sl.plotComparison(w, '20170401', '20170630')
-sl.plotPosition(w, '20170401', '20170630')
+#sl.plotComparison(w, '20170101', '20170930')
+#sl.plotPosition(w, '20170101', '20170930')
 
 
 

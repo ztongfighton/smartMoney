@@ -11,9 +11,9 @@ global securities
 class Strategy:
     global w
     # 设置回测开始时间
-    start_date = '20170401'
+    start_date = '20170101'
     # 设置回测结束时间
-    end_date = '20170630'
+    end_date = '20170930'
     # 策略股票池
     stock_pool = dict()
     # 回测期间交易日
@@ -32,12 +32,14 @@ class Strategy:
     buy_signal_info = []
     #策略持仓,包含stock_code, stock_name, amount, cost, trade_date, days_in_position等信息
     position = {}
-    #现金(默认初始现金1000万）
-    cash = 10000000
+    # 初始资产规模
+    initial_asset_value = 6000000
+    # 现金
+    cash = initial_asset_value
     #资产总值
     total_asset = []
     #组合持仓数限制
-    cap_num = 50
+    cap_num = 30
     #手续费
     commission = 0.002
     #策略交易记录,包含stock_code, stock_name, amount, price, direction, trade_date等信息
@@ -101,8 +103,17 @@ class Strategy:
                     self.cash = self.cash + open_price * amount * (1 - self.commission)
                     del self.signal[stock_code]
                     del self.position[stock_code]
-                    self.transaction.append(
-                        [stock_code, stock_name, amount, open_price, "Sell", date])
+                    #self.transaction.append([stock_code, stock_name, amount, open_price, "Sell", date])
+                    # 记录交易，包括日期、证券代码、交易市场代码、交易方向、交易数量、交易价格
+                    tmp = stock_code.split('.')
+                    trade_code = tmp[0]
+                    market = tmp[1]
+                    if market == 'SZ':
+                        market = 'XSHE'
+                    else:
+                        market = 'XSHG'
+                    # self.transaction.append([stock_code, stock_name, amount, open_price, "Sell", date])
+                    self.transaction.append([date, "09:30:00", trade_code, market, "SELL", '', amount, open_price])
 
         #处理买信号
         for stock_code in list(self.signal.keys()):
@@ -122,7 +133,16 @@ class Strategy:
                         self.cash = self.cash - open_price * amount * (1 + self.commission)
                         #持仓信息记录股票代码、简称、数量、买入开盘价（前复权）、进入持仓的日期、持仓期间最高收盘价（前复权），持仓天数
                         self.position[stock_code] = [stock_name, amount, open_prices_f[stock_code], date, open_prices_f[stock_code], 0]
-                        self.transaction.append([stock_code, stock_name, amount, open_price, "Buy", date])
+                        # 记录交易，包括日期、证券代码、交易市场代码、交易方向、交易数量、交易价格
+                        tmp = stock_code.split('.')
+                        trade_code = tmp[0]
+                        market = tmp[1]
+                        if market == 'SZ':
+                            market = 'XSHE'
+                        else:
+                            market = 'XSHG'
+                        self.transaction.append([date, "09:30:00", trade_code, market, "BUY", '', amount, open_price])
+                        #self.transaction.append([stock_code, stock_name, amount, open_price, "Buy", date])
                 #无论买信号执行与否，删除买信号
                 del self.signal[stock_code]
 
@@ -171,7 +191,7 @@ class Strategy:
         #生成买入信号
         close_prices = w.wss(list(stock_codes), "close", "tradeDate=" + date + ";priceAdj=U;cycle=D").Data[0]
         close_prices = dict(zip(stock_codes, close_prices))
-        stock_asset = 1.0 * self.total_asset[-1][1] / self.cap_num
+        stock_asset = 1.0 * self.total_asset[-1][2] / self.cap_num
 
         for stock_code in stock_codes:
             if stock_code in self.position.keys():
@@ -188,6 +208,12 @@ class Strategy:
                mfd_inflow_m_10_mean[stock_code] / mfd_inflow_m_90_mean[stock_code] > 2.5 and \
                             self.mfd_inflow_today[stock_code] > mfd_inflow_m_10_mean[stock_code]:
                 #近10日累计涨幅是否已达9%，否则生成买入信号
+                '''
+                close_prices_f = w.wsd(stock_code, "close", date_pre11, date, "Fill=Previous;PriceAdj=F").Data[0]
+                max_close_price_f = max(close_prices_f)
+                min_close_price_f = min(close_prices_f)
+                max_increase = (max_close_price_f - min_close_price_f) / min_close_price_f
+                '''
                 close_price_pre11_f = w.wss(stock_code, "close", "tradeDate=" + date_pre11 + ";priceAdj=F;cycle=D").Data[0][0]
                 close_price_f = w.wss(stock_code, "close", "tradeDate=" + date + ";priceAdj=F;cycle=D").Data[0][0]
                 if (close_price_f - close_price_pre11_f) / close_price_pre11_f < 0.09:
@@ -236,15 +262,15 @@ class Strategy:
 
             # 如果当日大单净流出
             if inflow_today < 0:
-                #如果当日跌幅达3%，生成卖出信号
-                if (close_price[2] - close_price[1]) / close_price[1] < -0.03:
+                #如果当日跌幅达4%，生成卖出信号
+                if (close_price[2] - close_price[1]) / close_price[1] < -0.04:
                     p = self.position[stock_code]
                     stock_name = p[0]
                     amount = p[1]
                     self.signal[stock_code] = [stock_name, amount, "Sell"]
                     idx[i] = False
-                #如果当日最大回撤已达5%，生成卖出信号
-                elif (close_price[-1] - highest_close_price) / highest_close_price < -0.05:
+                #如果当日最大回撤已达6%，生成卖出信号
+                elif (close_price[-1] - highest_close_price) / highest_close_price < -0.06:
                     p = self.position[stock_code]
                     stock_name = p[0]
                     amount = p[1]
@@ -305,7 +331,11 @@ class Strategy:
                 close_price = close_prices[i]
                 stock_value += close_price * amount
         #记录每日组合资产净值和仓位
-        self.total_asset.append([date, stock_value + self.cash, stock_value / (stock_value + self.cash)])
+        #self.total_asset.append([date, stock_value + self.cash, stock_value / (stock_value + self.cash)])
+        # 记录日期、单位净值、资产规模、现金
+        asset_value = stock_value + self.cash
+        # self.total_asset.append([date, stock_value + self.cash, stock_value / (stock_value + self.cash)])
+        self.total_asset.append([date, asset_value / self.initial_asset_value, asset_value, self.cash])
 
         #处理持仓股分红送转
         today = datetime.datetime.strptime(date, "%Y%m%d")
