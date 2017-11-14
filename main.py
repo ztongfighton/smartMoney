@@ -2,7 +2,6 @@ from WindPy import *
 import pandas as pd
 import datetime
 import strategy
-import strategy_lib as sl
 
 w.start()
 
@@ -43,14 +42,17 @@ writer.save()
 #生成买入信号文件
 writer = pd.ExcelWriter("买入信号.xls")
 buy_signal_info = pd.DataFrame(s.buy_signal_info, columns = ["证券代码", "证券简称", "近10日大单净流入额平均值", "近90日大单净流入额平均值", \
-                                                             "生成买入信号当日大单净流入额", "买入信号生成日期"])
+                                                             "大单净流入额", "对A股流通市值的比值", "日期"])
 buy_signal_info.to_excel(writer, "买入信号生成信息")
 writer.save()
 
-print("Done!")
+#生成卖出信号文件
+writer = pd.ExcelWriter("卖出信号.xls")
+sell_signal_info = pd.DataFrame(s.sell_signal_info, columns = ["证券代码", "证券简称", "卖出类型", "卖出信息", "日期"])
+sell_signal_info.to_excel(writer, "卖出信号生成信息")
+writer.save()
 
-#sl.plotComparison(w, '20170101', '20170930')
-#sl.plotPosition(w, '20170101', '20170930')
+print("Done!")
 
 
 
